@@ -1,0 +1,97 @@
+---
+title: "Simple Linear Regression, Sum of Squares, and R Squared"
+author: " Forest Kingfisher"
+date: "`r Sys.Date()`"
+output: html_document
+---
+## Exercise 2.12, taken fromMontgomery, Douglas C., et al. <u>Introduction to Linear Regression Analysis</u>, John Wiley & Sons, Incorporated, 2012.
+
+The number of pounds of steam used per month at a plant is thought to be related to the average monthly ambient temperature. The past year’s usages and temperatures follow.
+
+```{r, echo=TRUE}
+#Import steam data by month
+dat212 <- read.csv("https://raw.githubusercontent.com/forestwhite/Regression/main/data/212Table.csv")
+names(dat212)[names(dat212) == "ï..Month"] <- "Month"
+dat212
+```
+
+Generate a scatterplot of the data.
+
+```{r}
+#Generate a scatter plot of the data
+plot(x = dat212$Temperature, 
+     y = dat212$Usage.l000, 
+     main = "Steam Usage vs. Ambient Temperature",
+     xlab = "Ambient Temperature, Fahrenheit", 
+     ylab = "Steam Usage, pounds", 
+     xlim = c(20,80), 
+     ylim = c(100,700))
+```
+
+Fit a simple linear regression model to the data and generate the intercept and coefficient estimates.  
+
+```{r, echo=TRUE}
+#generate linear model, scatter plot, and least squares coefficients
+lm212<-lm(dat212$Usage.l000~dat212$Temperature)
+summary(lm212)
+```
+
+Calculate the Sum of Squares Total (SST), the Sum of Squares of the Response (SSR), and the Sum of Squares of the Error/Residuals (SSE), and use them to find the coefficient of determination, R^2.
+
+```{r}
+# calculate y_hat estimate and sample average for y
+yhat_i<-9.20847*dat212$Temperature-6.33209
+y_bar<-mean(dat212$Usage.l000)
+
+#Calculate the sum of squares values
+SS_total<-sum((dat212$Usage.l000-y_bar)^2)
+SS_total
+SS_error<-sum((dat212$Usage.l000-yhat_i)^2)
+SS_error
+SS_regression<-sum((yhat_i-y_bar)^2)
+SS_regression
+
+# calculate coefficient of determination, R^2
+r_squared<-SS_regression/SS_total
+r_squared
+```
+
+### Complete Code
+
+The complete R code used in this analysis is as follows:
+
+```{r, eval=FALSE}
+#Import steam data by month
+dat212 <- read.csv("https://raw.githubusercontent.com/forestwhite/Regression/main/data/212Table.csv")
+names(dat212)[names(dat212) == "ï..Month"] <- "Month"
+dat212
+
+#Generate a scatter plot of the data
+plot(x = dat212$Temperature, 
+     y = dat212$Usage.l000, 
+     main = "Steam Usage vs. Ambient Temperature",
+     xlab = "Ambient Temperature, Fahrenheit", 
+     ylab = "Steam Usage, pounds", 
+     xlim = c(20,80), 
+     ylim = c(100,700))
+
+#generate linear model, scatter plot, and least squares coefficients
+lm212<-lm(dat212$Usage.l000~dat212$Temperature)
+summary(lm212)
+
+# calculate y_hat estimate and sample average for y
+yhat_i<-9.20847*dat212$Temperature-6.33209
+y_bar<-mean(dat212$Usage.l000)
+
+#Calculate the sum of squares values
+SS_total<-sum((dat212$Usage.l000-y_bar)^2)
+SS_total
+SS_error<-sum((dat212$Usage.l000-yhat_i)^2)
+SS_error
+SS_regression<-sum((yhat_i-y_bar)^2)
+SS_regression
+
+# calculate coefficient of determination, R^2
+r_squared<-SS_regression/SS_total
+r_squared
+```
