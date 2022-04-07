@@ -1,0 +1,128 @@
+---
+title: "Evaluate model adequecy, error normality, and variance of residuals"
+author: " Forest Kingfisher"
+date: "`r Sys.Date()`"
+output: html_document
+---
+## Exercise 4.6, taken from Montgomery, Douglas C., et al. <u>Introduction to Linear Regression Analysis</u>, John Wiley & Sons, Incorporated, 2012.
+
+The purity of oxygen produced by a fractional distillation process is thought to be related to the percentage of hydrocarbons in the main condenser of the processing unit. Twenty samples are shown below.
+
+```{r, echo=TRUE}
+#Import oxygen purity data
+dat46 <- read.csv("https://raw.githubusercontent.com/forestwhite/Regression/main/data/46table.csv")
+names(dat46)[names(dat46) == "Purity...."] <- "Purity"
+names(dat46)[names(dat46) == "Hydrocarbon...."] <- "Hydrocarbon"
+dat46
+```
+
+**a. Construct a normal probability plot of the residuals. Does there seem to be any problem with the normality assumption?**
+
+Looking at the normal probability plot, the residuals indicate a moderately skewed/non-normal distribution, therefore there is evidence the data set may violate the assumption of normally distributed errors required for model adequacy.
+
+```{r}
+# load ggplot library
+library(ggplot2)
+
+# calculate least square estimate coefficients using linear model
+lm46<-lm(dat46$Purity~dat46$Hydrocarbon)
+coefficients(lm46)
+
+# basic scatterplot with least squares estimate linear regression line
+ggplot(data=dat46, aes(x=Hydrocarbon, y=Purity)) + 
+  geom_point(color="blue") + 
+  ggtitle("Purity (%) of oxygen samples vs.\n percentage hydrocarbon in main condenser")  + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab("percentage of hydrocarbon") + 
+  ylab("purity of oxygen (%)") +
+  geom_abline(slope = coef(lm46)[["dat46$Hydrocarbon"]], 
+              intercept = coef(lm46)[["(Intercept)"]],
+              color="red")
+
+# test normality of error terms: plot normal probability plot
+plot(lm46, , which = 2)
+```
+
+**b. Construct and interpret a plot of the residuals versus the predicted response.**
+
+To calculate the residuals and standardized residuals by hand:
+
+ * Residuals/Error values are the difference between response values from the data and predicted response from linear model
+ * Standardized residuals are the residuals/error values divided by the square root of the Mean Squared Error (MSE)
+
+```{r}
+# Calculate residuals/error values manually
+Hydrocarbon<-dat46$Hydrocarbon
+yhat_i<-11.80103*Hydrocarbon+77.86328
+Errors <- dat46$Purity - yhat_i
+dfErr<-data.frame(Hydrocarbon, Errors)
+dfErr[order(dfErr$Hydrocarbon), ]
+
+# Calculate standardized residuals manually
+SS_error<-sum((dat46$Purity-yhat_i)^2)
+MSE<-SS_error/(20-2) #approximate variance or sigma_squared of the sample
+StandardizedResiduals<-Errors/(MSE^0.5)
+dfStdRes<-data.frame(Hydrocarbon, StandardizedResiduals)
+dfStdRes[order(dfErr$Hydrocarbon), ]
+```
+
+Looking at the residuals plotted against predicted values, they aren't distributed randomly, indicating that the data violates the assumption of constant variance (Homoscedasticity of errors) required for an adequate regression model. Standardized residuals show several outliers - observations 7:|-1.299|, 17:|1.45|, 18:|2.03| - which could be analyzed for leverage.
+
+```{r}
+# test constant variance: plot residuals vs. predicted values
+plot(lm46, , which = 1)
+# second test constant variance: plot standardized residuals vs. predicted values
+plot(lm46, , which = 3)
+```
+
+### Complete Code
+
+The complete R code used in this analysis is as follows:
+
+```{r, eval=FALSE}
+#Import oxygen purity data
+dat46 <- read.csv("https://raw.githubusercontent.com/forestwhite/Regression/main/data/46table.csv")
+names(dat46)[names(dat46) == "Purity...."] <- "Purity"
+names(dat46)[names(dat46) == "Hydrocarbon...."] <- "Hydrocarbon"
+dat46
+
+# library
+library(ggplot2)
+
+# basic scatterplot with least squares estimate linear regression line
+ggplot(data=dat46, aes(x=Hydrocarbon, y=Purity)) + 
+  geom_point(color="blue") + 
+  ggtitle("Purity (%) of oxygen samples vs.\n percentage hydrocarbon in main condenser")  + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab("percentage of hydrocarbon") + 
+  ylab("purity of oxygen (%)") +
+  geom_abline(slope = coef(lm46)[["dat46$Hydrocarbon"]], 
+              intercept = coef(lm46)[["(Intercept)"]],
+              color="red")
+
+# calculate least square estimate coefficients using linear model
+lm46<-lm(dat46$Purity~dat46$Hydrocarbon)
+coefficients(lm46)
+
+# test normality of error terms: plot normal probability plot
+plot(lm46, , which = 2)
+
+# Calculate residuals/error values manually
+Hydrocarbon<-dat46$Hydrocarbon
+yhat_i<-11.80103*Hydrocarbon+77.86328
+Errors <- dat46$Purity - yhat_i
+dfErr<-data.frame(Hydrocarbon, Errors)
+dfErr[order(dfErr$Hydrocarbon), ]
+
+# Calculate standardized residuals manually
+SS_error<-sum((dat46$Purity-yhat_i)^2)
+MSE<-SS_error/(20-2) #approximate variance or sigma_squared of the sample
+StandardizedResiduals<-Errors/(MSE^0.5)
+dfStdRes<-data.frame(Hydrocarbon, StandardizedResiduals)
+dfStdRes[order(dfErr$Hydrocarbon), ]
+
+# test constant variance: plot residuals vs. predicted values
+plot(lm46, , which = 1)
+# second test constant variance: plot standardized residuals vs. predicted values
+plot(lm46, , which = 3)
+```
