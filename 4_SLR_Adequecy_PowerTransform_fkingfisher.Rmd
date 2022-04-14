@@ -1,0 +1,147 @@
+---
+title: "Evaluate model adequecy, error normality, and variance of residuals"
+author: " Forest Kingfisher"
+date: "`r Sys.Date()`"
+output: html_document
+---
+## Exercise 5.1, taken from Montgomery, Douglas C., et al. <u>Introduction to Linear Regression Analysis</u>, John Wiley & Sons, Incorporated, 2012.
+
+5.1 Byers and Williams (“Viscosities of Binary and Ternary Mixtures of Polyaromatic Temperatures,” Journal of Chemical and Engineering Data, 32, 349–354, 1987) studied the impact of temperature (the regressor) on the viscosity (the response) of toluene-tetralin blends. The following table gives the data for blends with a 0.4 molar fraction of toluene.
+
+```{r, echo=TRUE}
+#Import toluene-tetralin blend viscosity data
+dat51 <- read.csv("https://raw.githubusercontent.com/forestwhite/Regression/main/data/data-table-51.csv")
+names(dat51)[names(dat51) == "Temperature.Celsius."] <- "Temperature"
+names(dat51)[names(dat51) == "Viscosity.mPa.s."] <- "Viscosity"
+dat51
+```
+
+**a. Plot a scatter diagram. Does it seem likely that a straight-line model will be adequate?**
+
+The scatter plot looks near-linear, which suggests a linear fit would be a good estimate of the relationship between viscosity and temperature.
+
+```{r}
+# load ggplot library
+library(ggplot2)
+
+# basic scatterplot
+ggplot(data=dat51, aes(x=Temperature, y=Viscosity)) + 
+  geom_point(color="blue") + 
+  ggtitle("Viscosity of toluene-tetralin blends vs.\n Temperature ")  + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab(" Temperature") + 
+  ylab("Viscosity")
+```
+
+**b. Fit the straight-line model. Compute the summary statistics and the residual plots. What are your conclusions regarding model adequacy?**
+
+The linear model summary statistics indicate that the model is significant (p-value: 8.819e-05) and close to a good fit (Adjusted R-squared:  0.9561). However, the residual plot demonstrates that variance is not constant, violating one of the essential conditions required to use a least-squares estimate.
+
+```{r}
+# calculate least square estimate coefficients and statistics
+lm51<-lm(dat51$Viscosity~dat51$Temperature)
+summary(lm51)
+
+# test constant variance: plot residuals vs. predicted values
+plot(lm51, , which = 1)
+```
+
+**Fit a Box-Cox power transformation.  Does it appear that a power transform would stabilize the variance?  What value of lambda would you select?**
+
+Box-Cox power transformations typically stabilize normality, not variance, but we can perform the analysis and see if variance changes. The Box-Cox estimate of a good power transformation suggests lamda < 0, in which case we can typically use the generated value as an exponent in a power transformation. In this case, lambda = -0.7878788.
+
+```{r}
+# Boxcox power estimate
+library(MASS)
+mod_b<-boxcox(Viscosity~Temperature, plotit=TRUE,data=dat51 )
+
+data.frame(mod_b$x, mod_b$y)
+
+lambda<-mod_b$x
+liklihood<-mod_b$y
+lambda_pick<-lambda[which.max(liklihood)]
+lambda_pick
+```
+
+**Transform the data and fit again.  Check for model adequacy and comment on significance of regression with transformed data.**
+
+With so few data points, the outliers may have a lot of leverage (leverage analysis is in a subsequent example). The residuals plot indicates that the variance is closer to constant, with all marginal errors between 0.020 and -0.015. Normality is also more likely with all points in almost a straight line with the exception of 2 outliers. The model fit is improved in significance (lower p-value) and accuracy (higher r-squared) as well.
+
+```{r}
+#Import toluene-tetralin blend viscocity data
+dat51 <- read.csv("https://raw.githubusercontent.com/forestwhite/Regression/main/data/data-table-51.csv")
+names(dat51)[names(dat51) == "Temperature..C."] <- "Temperature"
+names(dat51)[names(dat51) == "Viscosity.mPa.s."] <- "Viscosity"
+dat51
+
+# Boxcox power estimate
+library(MASS)
+mod_b<-boxcox(Viscosity~Temperature, plotit=TRUE,data=dat51 )
+
+lambda<-mod_b$x
+liklihood<-mod_b$y
+lambda_pick<-lambda[which.max(liklihood)]
+lambda_pick
+
+# power transformation, lambda = -0.7878788
+dat51power<-dat51
+dat51power[,2]<-dat51power[,2]^lambda_pick
+dat51power
+
+#check boxcox estimate on transformed data, lambda should equal 1
+boxcox(Viscosity~Temperature, plotit=TRUE,data=dat51power )
+
+# create a new linear model with the power transformation
+lm51power <- lm(Viscosity~Temperature,data=dat51power)
+
+# test constant variance: plot residuals vs. predicted values
+plot(lm51power, which = 1)
+# test normality of error terms: plot normal probability plot
+plot(lm51power, which = 2)
+
+# t test on fit
+summary(lm51power)
+```
+
+### Complete Code
+
+The complete R code used in this analysis is as follows:
+
+```{r, eval=FALSE}
+# load ggplot library
+library(ggplot2)
+
+# basic scatterplot
+ggplot(data=dat51, aes(x=Temperature, y=Viscosity)) + 
+  geom_point(color="blue") + 
+  ggtitle("Viscosity of toluene-tetralin blends vs.\n Temperature ")  + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab(" Temperature") + 
+  ylab("Viscosity")
+
+# calculate least square estimate coefficients and statistics
+lm51<-lm(dat51$Viscosity~dat51$Temperature)
+summary(lm51)
+
+# test constant variance: plot residuals vs. predicted values
+plot(lm51, , which = 1)
+
+# power transformation, lambda = -0.7878788
+dat51power<-dat51
+dat51power[,2]<-dat51power[,2]^lambda_pick
+dat51power
+
+#check boxcox estimate on transformed data, lambda should equal 1
+boxcox(Viscosity~Temperature, plotit=TRUE,data=dat51power )
+
+# create a new linear model with the power transformation
+lm51power <- lm(Viscosity~Temperature,data=dat51power)
+
+# test constant variance: plot residuals vs. predicted values
+plot(lm51power, which = 1)
+# test normality of error terms: plot normal probability plot
+plot(lm51power, which = 2)
+
+# t test on fit
+summary(lm51power)
+```
