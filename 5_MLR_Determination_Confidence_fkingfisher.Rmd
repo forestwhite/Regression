@@ -1,0 +1,312 @@
+---
+title: "Evaluate model adequecy, error normality, and variance of residuals"
+author: " Forest Kingfisher"
+date: "`r Sys.Date()`"
+output: html_document
+---
+## Exercise 3.12, taken from Montgomery, Douglas C., et al. <u>Introduction to Linear Regression Analysis</u>, John Wiley & Sons, Incorporated, 2012.
+
+Consider problem 3.12 in your book, that uses the datafile data-table-B8.csv.  Be sure that you can work this problem both by hand (using R as a calculator) and within R (using the lm() function).  Note that in R, the Residual Sum of Squared Error that is reported in the summary(lm()) function is the square root of the Mean Squared Error (MSE).
+
+3.12 A chemical engineer studied the effect of the amount of surfactant and time on clathrate formation. Clathrates are used as cool storage media. Table B.8 summarizes the experimental results.
+
+
+```{r, echo=TRUE}
+#Import clathrate formation data
+dat312 <- read.csv("https://raw.githubusercontent.com/forestwhite/Regression/main/data/data-table-B8.csv")
+names(dat312)[names(dat312) == "ï..x1"] <- "x1"
+dat312
+```
+
+**a. Fit a multiple linear regression model relating clathrate formation to these regressors.**
+
+Given:
+
+ * y = Clathrate Formation
+ * x1 = level of surfactant
+ * x2 = time of reaction
+ 
+The model equation of clathrate formation is
+
+    y_hat = beta_0 + beta_1(x1) + beta_2(x2) + beta_12(x1)(x2)
+
+The multiple linear regression model is:
+
+    y_hat = 12.50128449 + 256.73740096(x1) + 0.09879204(x2) + 0.76127041(x1)(x2)
+
+```{r}
+# Generate the linear model for interactions
+lm312<-lm(y~x1*x2,data=dat312)
+
+# examine least square coefficients
+lm312$coefficients
+```
+
+**b. Test for significance of regression. What conclusions can you draw?**
+
+Besides a few outliers, the variance is constant/random for this data set, as demonstrated in the residual vs. fitted plot.
+
+Additionally, the data set demonstrates normality as demonstrated by the normal probability plot.
+
+```{r}
+# test constant variance: plot residuals vs. predicted values
+plot(lm312, which = 1)
+# test normality of error terms: plot normal probability plot
+plot(lm312, which = 2)
+```
+
+**c. Use t tests to assess the contribution of each regressor to the model. Discuss your findings.**
+
+A very low p-value (2.318e-13) and relatively high R-squared coefficient (0.8518) support that the model is overall significant and a reasonably good fit for actual population from which this sample is taken. For each individual predictor variable, we have:
+
+ * (Intercept): t = 6.602 -> Pr(>|t|) = 1.92e-07 < 0.05, therefore significant
+ * x1: t = 3.482 -> Pr(>|t|) = 0.00146 < 0.05, therefore significant
+ * x2: t = 8.281 -> Pr(>|t|) = 1.84e-09 < 0.05, therefore significant
+ * x1:x2: t = 1.492 -> Pr(>|t|) = 0.14551 > 0.05, therefore not significant 
+
+```{r}
+# perform anova on the regressed model
+summary(lm312)
+```
+
+**d. Calculate R2 and RAdj 2 for this model. Compare these values to the R2 and RAdj 2 for the simple linear regression model relating clathrate formation to time. Discuss your results.**
+
+The computed r-squared and adjusted r-squared values for both models is summarized in the table below:
+
+| model   | r-squared | adj. r-squared |
+|---------|-----------|----------------|
+| y~x1+x2 | 0.8415008 | 0.8318948      |
+| y~x2    | 0.467616  | 0.4519577      |
+
+R-squared values are also known as coefficients of determination because this value indicates how much the response fit estimate, y_hat, is determined  by the model predictor variables. In this case, time (x2) alone determines between 45.2% and 46.8% of the y_hat fit, whereas time (x2) and surfuctant (x1) together determine between 83.2% and 84.2% of the y_hat fit. In this way, the 2 variable model is much better at estimating y values than the single variable model.
+
+```{r}
+# Generate the linear model without interaction x1:x2
+mod312<-lm(y~x1+x2,data=dat312)
+# perform anova on the regressed model, and extract r values
+summary(mod312)$r.squared
+summary(mod312)$adj.r.squared
+
+ones<-rep(1,36)
+# cbind() combines vectors into a data table (columns)
+Y<-cbind(dat312$y) # Y matrix
+X<-cbind(ones,dat312$x1,dat312$x2)
+
+# inverse function ginv() is a function in the MASS package 
+library(MASS)
+
+# Get the hat matrix
+hat<- X%*%ginv(t(X)%*%X)%*%t(X)
+# residuals e = (I-H)y
+e<-(diag(36)-hat)%*%Y
+# Calculate the least-squares estimate of beta
+beta_hat<- ginv(t(X)%*%X)%*%t(X)%*%Y
+
+#regression sum of squares = beta_hat'X'y-(sum(Y)^2)
+ssr <- t(beta_hat)%*%t(X)%*%Y - (sum(Y)^2)/36
+#total sum of squares = y'y-(sum(Y)^2)
+sst <- t(Y)%*%Y - (sum(Y)^2)/36
+#Residual sum of squares = y'y-beta_hat'X'y
+rss <- t(Y)%*%Y - t(beta_hat)%*%t(X)%*%Y
+# r_squared = (regression sum of squares)/(total sum of squares)
+ssr/sst
+# OR r_squared = 1 - (residual sum of squares)/(total sum of squares)
+# 1 - rss/sst
+#Adj. R2=1−(rss/(n-k-1))/(sst/(n-1)), where k=# of predictors
+1 − (rss/(36-2-1))/(sst/(36-1))
+
+
+# Generate the simple linear model with only predictor time/x2
+mod312_time<-lm(y~x2,data=dat312)
+# perform anova on the regressed model, and extract r values
+summary(mod312_time)$r.squared
+summary(mod312_time)$adj.r.squared
+
+# rebind X with just x2
+X<-cbind(ones,dat312$x2)
+
+# Calculate the least-squares estimate of beta
+beta_hat<- ginv(t(X)%*%X)%*%t(X)%*%Y
+
+#regression sum of squares = beta_hat'X'y-(sum(Y)^2)
+ssr <- t(beta_hat)%*%t(X)%*%Y - (sum(Y)^2)/36
+#total sum of squares = y'y-(sum(Y)^2)
+sst <- t(Y)%*%Y - (sum(Y)^2)/36
+#Residual sum of squares = y'y-beta_hat'X'y
+rss <- t(Y)%*%Y - t(beta_hat)%*%t(X)%*%Y
+# r_squared = (regression sum of squares)/(total sum of squares)
+ssr/sst
+# OR r_squared = 1 - (residual sum of squares)/(total sum of squares)
+# 1 - rss/sst
+#Adj. R2=1−(rss/(n-k-1))/(sst/(n-1)), where k=# of predictors
+1 − (rss/(36-1-1))/(sst/(36-1))
+```
+
+**e. Find a 95% CI for the regression coefficient for time for both models in part d. Discuss any differences.**
+
+From the linear models, the confidence intervals for beta_2 (time coefficient) are:
+
+ * surfuctant+time: 0.08862341 < beta_2 < 0.1292454
+ * time alone: 0.06136762 < beta_2 < 0.1340337
+ 
+When time is the only predictor, the 95% confidence interval for beta_2 coefficient is wider than the 95% confidence interval for beta_2 when there are 2 predictor variables, no matter which method used to calculate the interval. This implies that the model with 2 predictors is more precise than the model with only the time predictor.
+
+
+```{r}
+# 95% confidence interval for the mean, assuming normal error
+sd <- sd(dat312$y)
+cbind(CIlower = mean(dat312$y) - 1.96 * sd / 6, CIupper = mean(dat312$y) + 1.96 * sd / 6)
+
+# compute 95% confidence interval for coefficients in linear_model with only time
+confint(mod312_time, level = 0.95)
+
+#  check if the calculation is done as we expect it to be for beta_2
+# compute 95% confidence interval for coefficients in simple linear_model by hand
+mod312_time_summ <- summary(mod312_time)
+
+c("lower" = mod312_time_summ$coef[2,1] - qt(0.975, df = mod312_time_summ$df[2]) * mod312_time_summ$coef[2, 2],
+  "upper" = mod312_time_summ$coef[2,1] + qt(0.975, df = mod312_time_summ$df[2]) * mod312_time_summ$coef[2, 2])
+
+# compute 95% confidence interval for coefficients in linear model with surfuctant and time BOOK ANSWER
+confint(mod312, level = 0.95)
+
+# compute non-robust 95% confidence intervals by hand, BOOK ANSWER
+mod312_summ <- summary(mod312)
+
+mod312_summ <- summary(mod312)
+c("lower" = mod312_summ$coef[3,1] - 1.96 * mod312_summ$coef[3, 2],
+  "upper" = mod312_summ$coef[3,1] + 1.96 * mod312_summ$coef[3, 2])
+
+# A disadvantage of confint() is that is does not use robust standard errors to compute the confidence interval.
+# For large-sample confidence intervals, this is quickly done manually as follows.
+# compute robust standard errors when there are large residuals and high leverage (ie, hat values)
+plot(mod312, which = 5)
+library(sandwich)
+mod312_se <- diag(vcovHC(mod312, type = "HC1"))^0.5
+
+# compute robust 95% confidence intervals
+rbind("lower" = coef(mod312) - qnorm(0.975) * mod312_se,
+      "upper" = coef(mod312) + qnorm(0.975) * mod312_se)
+
+```
+
+
+### Complete Code
+
+The complete R code used in this analysis is as follows:
+
+```{r, eval=FALSE}
+#Import clathrate formation data
+dat312 <- read.csv("https://raw.githubusercontent.com/forestwhite/Regression/main/data/data-table-B8.csv")
+names(dat312)[names(dat312) == "ï..x1"] <- "x1"
+dat312
+
+# Generate the linear model for interactions
+lm312<-lm(y~x1*x2,data=dat312)
+
+# examine least square coefficients
+lm312$coefficients
+
+# test constant variance: plot residuals vs. predicted values
+plot(lm312, which = 1)
+# test normality of error terms: plot normal probability plot
+plot(lm312, which = 2)
+
+# perform anova on the regressed model
+summary(lm312)
+
+# Generate the linear model without interaction x1:x2
+mod312<-lm(y~x1+x2,data=dat312)
+# perform anova on the regressed model, and extract r values
+summary(mod312)$r.squared
+summary(mod312)$adj.r.squared
+
+ones<-rep(1,36)
+# cbind() combines vectors into a data table (columns)
+Y<-cbind(dat312$y) # Y matrix
+X<-cbind(ones,dat312$x1,dat312$x2)
+
+# inverse function ginv() is a function in the MASS package 
+library(MASS)
+
+# Get the hat matrix
+hat<- X%*%ginv(t(X)%*%X)%*%t(X)
+# residuals e = (I-H)y
+e<-(diag(36)-hat)%*%Y
+# Calculate the least-squares estimate of beta
+beta_hat<- ginv(t(X)%*%X)%*%t(X)%*%Y
+
+#regression sum of squares = beta_hat'X'y-(sum(Y)^2)
+ssr <- t(beta_hat)%*%t(X)%*%Y - (sum(Y)^2)/36
+#total sum of squares = y'y-(sum(Y)^2)
+sst <- t(Y)%*%Y - (sum(Y)^2)/36
+#Residual sum of squares = y'y-beta_hat'X'y
+rss <- t(Y)%*%Y - t(beta_hat)%*%t(X)%*%Y
+# r_squared = (regression sum of squares)/(total sum of squares)
+ssr/sst
+# OR r_squared = 1 - (residual sum of squares)/(total sum of squares)
+# 1 - rss/sst
+#Adj. R2=1−(rss/(n-k-1))/(sst/(n-1)), where k=# of predictors
+1 − (rss/(36-2-1))/(sst/(36-1))
+
+
+# Generate the simple linear model with only predictor time/x2
+mod312_time<-lm(y~x2,data=dat312)
+# perform anova on the regressed model, and extract r values
+summary(mod312_time)$r.squared
+summary(mod312_time)$adj.r.squared
+
+# rebind X with just x2
+X<-cbind(ones,dat312$x2)
+
+# Calculate the least-squares estimate of beta
+beta_hat<- ginv(t(X)%*%X)%*%t(X)%*%Y
+
+#regression sum of squares = beta_hat'X'y-(sum(Y)^2)
+ssr <- t(beta_hat)%*%t(X)%*%Y - (sum(Y)^2)/36
+#total sum of squares = y'y-(sum(Y)^2)
+sst <- t(Y)%*%Y - (sum(Y)^2)/36
+#Residual sum of squares = y'y-beta_hat'X'y
+rss <- t(Y)%*%Y - t(beta_hat)%*%t(X)%*%Y
+# r_squared = (regression sum of squares)/(total sum of squares)
+ssr/sst
+# OR r_squared = 1 - (residual sum of squares)/(total sum of squares)
+# 1 - rss/sst
+#Adj. R2=1−(rss/(n-k-1))/(sst/(n-1)), where k=# of predictors
+1 − (rss/(36-1-1))/(sst/(36-1))
+
+# 95% confidence interval for the mean, assuming normal error
+sd <- sd(dat312$y)
+cbind(CIlower = mean(dat312$y) - 1.96 * sd / 6, CIupper = mean(dat312$y) + 1.96 * sd / 6)
+
+# compute 95% confidence interval for coefficients in linear_model with only time
+confint(mod312_time, level = 0.95)
+
+#  check if the calculation is done as we expect it to be for beta_2
+# compute 95% confidence interval for coefficients in simple linear_model by hand
+mod312_time_summ <- summary(mod312_time)
+
+c("lower" = mod312_time_summ$coef[2,1] - qt(0.975, df = mod312_time_summ$df[2]) * mod312_time_summ$coef[2, 2],
+  "upper" = mod312_time_summ$coef[2,1] + qt(0.975, df = mod312_time_summ$df[2]) * mod312_time_summ$coef[2, 2])
+
+# compute 95% confidence interval for coefficients in linear model with surfuctant and time
+confint(mod312, level = 0.95)
+
+# compute non-robust 95% confidence intervals by hand
+mod312_summ <- summary(mod312)
+
+mod312_summ <- summary(mod312)
+c("lower" = mod312_summ$coef[3,1] - 1.96 * mod312_summ$coef[3, 2],
+  "upper" = mod312_summ$coef[3,1] + 1.96 * mod312_summ$coef[3, 2])
+
+# A disadvantage of confint() is that is does not use robust standard errors to compute the confidence interval.
+# For large-sample confidence intervals, this is quickly done manually as follows.
+# compute robust standard errors when there are large residuals and high leverage (ie, hat values)
+plot(mod312, which = 5)
+library(sandwich)
+mod312_se <- diag(vcovHC(mod312, type = "HC1"))^0.5
+
+# compute robust 95% confidence intervals
+rbind("lower" = coef(mod312) - qnorm(0.975) * mod312_se,
+      "upper" = coef(mod312) + qnorm(0.975) * mod312_se)
+```
